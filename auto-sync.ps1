@@ -21,11 +21,21 @@ if ($LASTEXITCODE -ne 0) {
     Write-Log 'No local changes.'
 }
 
-git push origin main 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    # Remote has commits we don't have (e.g. edited on github.com): rebase, then retry.
-    git pull --rebase origin main 2>&1 | Out-Null
-    git push origin main 2>&1 | Out-Null
+# Never wait for a login prompt in the background, and abort stalled connections
+# (under 1 KB/s for 20 s) so a flaky network just means "retry", not a hang.
+$env:GCM_INTERACTIVE     = 'never'
+$env:GIT_TERMINAL_PROMPT = '0'
+$net = @('-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=20')
+
+$ok = $false
+for ($i = 1; $i -le 3 -and -not $ok; $i++) {
+    git @net push origin main 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        # Remote may have commits we don't have (e.g. edited on github.com): rebase, then retry.
+        git @net pull --rebase origin main 2>&1 | Out-Null
+        git @net push origin main 2>&1 | Out-Null
+    }
+    if ($LASTEXITCODE -eq 0) { $ok = $true } else { Write-Log "Push attempt $i failed (exit $LASTEXITCODE)."; Start-Sleep -Seconds 30 }
 }
 
-if ($LASTEXITCODE -eq 0) { Write-Log 'Push OK.' } else { Write-Log "Push FAILED (exit $LASTEXITCODE)." }
+if ($ok) { Write-Log 'Push OK.' } else { Write-Log 'Push FAILED after 3 attempts; will retry at next run.' }
