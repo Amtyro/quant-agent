@@ -3,10 +3,11 @@
 The simulator is deterministic given (config, seed), and the committed results depend on that. This test pins the
 summary of a few short runs, so any change that alters simulated markets fails loudly.
 
-Exact values are platform-specific: PyMarketSim's HBL price optimiser relies on compiled numerical code whose
-floating-point results differ slightly between operating systems, and the differences compound over a run. The
-fixture therefore holds one set of values per ``sys.platform``; a platform without an entry is skipped. The committed
-results in ``results_a1/`` were produced on Windows (``win32``).
+Exact values are machine-specific: PyMarketSim's HBL price optimiser relies on compiled numerical code whose
+floating-point results differ slightly between operating systems and CPUs, and the differences compound over a run
+(on GitHub's Linux runners they even differ from one runner to the next). Runs are bit-for-bit repeatable on the
+same machine. The fixture therefore holds values per ``sys.platform`` and is only populated for Windows (``win32``),
+where the committed results in ``results_a1/`` were produced; other platforms skip this test.
 
 To (re)generate the entry for the current platform, e.g. when a change is meant to alter outputs:
 

@@ -23,8 +23,9 @@ Each project folder is self-contained, with its own README covering setup, how t
 
 ## Conventions
 
-- Every simulation is seeded and deterministic; committed results can be regenerated exactly from the commands in
-  each project's README.
+- Every simulation is seeded and repeatable bit for bit on the same machine; committed results can be regenerated
+  from the commands in each project's README (on other machines, floating-point details of the dependencies can
+  shift the last digits).
 - Large raw outputs (`*.pkl`, `data/`) and secrets (`.env`, keys) are git-ignored and never pushed.
 - Code is linted with [ruff](https://docs.astral.sh/ruff/) and tested with pytest in CI.
 

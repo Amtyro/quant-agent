@@ -19,7 +19,7 @@ positive driven by terminal-value noise, and the design makes the true interacti
 | Seeds | pilot 100000–100399, pre-specified confirmation 200000–200399 (400 per arm) |
 
 Every source of randomness has its own seeded stream, so arms that share a seed differ only through the seller's
-behaviour, and every run is exactly reproducible. Full design and pre-specified claims:
+behaviour, and every run is exactly repeatable on the same machine (see the reproducibility note below). Full design and pre-specified claims:
 [`experiments/A1_DESIGN.md`](experiments/A1_DESIGN.md). A plain-language walkthrough in Chinese:
 [`experiments/A1_EXPLAINER_zh.md`](experiments/A1_EXPLAINER_zh.md).
 
@@ -45,7 +45,7 @@ a1_iceberg_spoofing/
 └── requirements.txt        pinned environment that produced the results
 ```
 
-The raw `*.pkl` result files (about 135 MB) are not committed; the commands below re-create them exactly.
+The raw `*.pkl` result files (about 135 MB) are not committed; the commands below re-create them (exactly, on the machine that produced them).
 
 ## Setup
 
@@ -91,8 +91,9 @@ A1_UPDATE_GOLDEN=1 python -m pytest experiments/test_regression.py   # only when
 Refactors must leave `test_regression.py` passing: the committed results depend on the simulator being bit-for-bit
 deterministic.
 
-**Platform note.** Runs are exactly reproducible on the same platform, but not bit-for-bit across operating systems:
-PyMarketSim's HBL price optimiser uses compiled numerical code whose floating-point results differ slightly between
-Windows and Linux, and the differences compound over a market. The committed results were produced on Windows with
-the pinned environment above. The golden fixture therefore holds one set of values per platform; CI checks the Linux
-set.
+**Reproducibility note.** Runs are bit-for-bit repeatable on the same machine, but not across machines: PyMarketSim's
+HBL price optimiser uses compiled numerical code whose floating-point results differ slightly between operating
+systems and CPUs, and the differences compound over a market. On another machine, expect the same conclusions with
+slightly different numbers in the tables. The committed results were produced on Windows with the pinned
+environment above, so the golden regression test is pinned there only and skips elsewhere (including CI, which runs
+lint and the correctness tests).
