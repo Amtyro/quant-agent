@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iceberg Orders and Spoofing</title>
+<style>
+  @page { size: Letter; margin: 0.8in 0.85in; }
+  body { font-family: "Cambria", "Georgia", serif; font-size: 10.5pt; line-height: 1.42; color: #1a1a1a; }
+  h1 { font-size: 17pt; line-height: 1.25; margin: 0 0 4pt; }
+  .sub { color: #555; font-size: 10pt; margin-bottom: 14pt; }
+  h2 { font-size: 12.5pt; margin: 16pt 0 5pt; border-bottom: 1px solid #bbb; padding-bottom: 2pt; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 11pt 0 3pt; break-after: avoid; }
+  p { margin: 4pt 0 6pt; text-align: justify; }
+  ul, ol { margin: 3pt 0 6pt 0; padding-left: 18pt; }
+  li { margin: 2pt 0; }
+  .abstract { border: 1px solid #ccc; background: #f6f6f4; padding: 8pt 11pt; margin-bottom: 8pt; }
+  .abstract p { margin: 3pt 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 5pt 0 8pt; break-inside: avoid; }
+  th, td { border: 1px solid #c8c8c8; padding: 2.5pt 4pt; text-align: left; vertical-align: top; }
+  th { background: #eeeeea; }
+  td.n { text-align: right; white-space: nowrap; }
+  .cap { font-size: 8.8pt; color: #444; margin: 2pt 0 10pt; }
+  figure { margin: 6pt 0; break-inside: avoid; }
+  figure img { width: 100%; }
+  .narrow img { width: 68%; display: block; margin: 0 auto; }
+  code { font-family: Consolas, monospace; font-size: 9pt; }
+  .refs p { text-align: left; font-size: 9.2pt; margin: 2pt 0; padding-left: 14pt; text-indent: -14pt; }
+  .key { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Hiding the Genuine Leg: Iceberg Orders and Spoofing against Learning Traders</h1>
+<div class="sub">Preliminary results in the PyMarketSim environment of Gu et al. (2024) &middot; November 2026 &middot;
+Code and data: github.com/Amtyro/quant-agent (folder <code>a1_iceberg_spoofing</code>)</div>
+
+<div class="abstract">
+<p><b>Abstract.</b> In enforcement cases, spoofers often submit the order they really want filled (the genuine leg) as an
+iceberg, while the spoof order on the other side is fully displayed. We ask whether hiding the genuine leg makes spoofing
+more effective against heuristic-belief-learning (HBL) traders. The setting is the market environment of Gu et al.
+(2024), where the spoofer's own visible sell order works against its spoof bid. We rebuilt the order book with
+price&ndash;time priority, synthetic icebergs, and HBL agents that learn only from public order and trade records. We
+then ran 34,800 seed-paired simulations in three liquidity environments: an exploratory pilot and a pre-specified
+confirmation on fresh seeds. All runs were repeated with a lower-variance surplus measure that values each fill at the
+fundamental estimate when it trades.</p>
+<p><span class="key">(1) No amplification.</span> The interaction between spoofing and hiding on spoofer surplus is
+small in every cell (&minus;8.3 to +7.3). The largest precise estimate is a mild substitution, &minus;6.2 [&minus;11.4,
+&minus;1.6] in the least liquid market, about 14% of the gain from spoofing there. The pilot's apparent &minus;35 was
+noise from the terminal fundamental.
+<span class="key">(2) Hiding crowds out learning sellers.</span> Without any spoofing, an iceberg seller sells about
+0.3 more units per market, mostly because HBL sellers stop undercutting a visible sell wall. Background surplus falls by
+11&ndash;88 per market; at offsets 50&ndash;100 that is 3&ndash;5 times the hider's own gain.
+<span class="key">(3) Gu et al. replicate.</span> Spoofing raises the midprice by +1 to +5 in the middle market (B2) and by
++6 to +15 in the least liquid market (C3), and lowers HBL surplus by 5&ndash;9 per agent. With the low-variance measure,
+the profit from spoofing is significant in both less liquid markets, +17 to +37 for Gu et al.'s one-unit spoofer.
+<span class="key">(4) Mechanism.</span> Two features make the interaction small by construction:
+<ul>
+<li>The genuine order's price is fixed relative to the fundamental estimate, so hiding can affect spoofer profit only
+through how many units fill.</li>
+<li>Under HBL's evidence rules, the spoof bid and the genuine ask never enter the belief at the same price.</li>
+</ul>
+This points to a sharper follow-up question: does spoofability depend on displayed or on actual liquidity?</p>
+</div>
+
+<h2>1. Motivation and relation to prior work of the group</h2>
+<p><b>Wang and Wellman (2017)</b> built an agent-based model of spoofing. Background traders who learn from the order
+book (HBL; Gjerstad and Dickhaut, 1998) are misled by large spurious bids, and spoofing shifts prices and transfers
+surplus. <b>Wang, Hoang, Vorobeychik and Wellman (2021)</b> moved this analysis into strategic equilibrium using
+empirical game-theoretic analysis (EGTA; Wellman, 2006): background traders choose between learning and non-learning
+strategies, and the paper studies cloaking and more robust learning variants. <b>Gu et al. (2024)</b> showed that
+less liquid markets are more spoofable. They also made the observation that motivates this project: the spoofer's own
+visible sell order enters HBL beliefs like a market maker's ask and partly offsets the spoof.</p>
+<p>A1 keeps Gu et al.'s environment (agents, parameters and their liquidity grid) and changes one thing: whether the
+genuine sell order is displayed in full or hidden as an iceberg. The question is whether removing that
+"self-offsetting" display amplifies spoofing.</p>
+
+<h2>2. Related literature</h2>
+<ul>
+<li><b>Hidden orders in enforcement cases.</b> Debie et al. (2023) and Verhulst and Pennings (2025) document spoofing
+cases in which the genuine side was executed through iceberg orders while the spoof side was displayed.</li>
+<li><b>Economics of hidden liquidity.</b> Esser and M&ouml;nch (2007), Bessembinder, Panayides and Venkataraman (2009),
+Buti and Rindi (2013), Boulatov and George (2013) and Frey and Sand&aring;s (2017) study when and why traders hide size,
+and how other traders react to the depth they can see. <b>Cebiroglu and Horst (2015)</b> model hiding as part of
+<i>liquidity competition</i> among liquidity providers, which is the channel behind our crowding-out result.</li>
+<li><b>Iceberg mechanics.</b> Zotikov and Antonov (2021) distinguish exchange-native icebergs from "synthetic" icebergs
+built by sending a sequence of small orders. We implement the synthetic kind: each refill joins the back of the
+queue.</li>
+<li><b>Closest agent-based work.</b> Liu (2024) and Liu et al. (GAIW-22) study iceberg orders in agent-based markets with
+HBL traders and EGTA, and separately study spoofing. To our knowledge, icebergs have not been studied as the genuine leg
+of a spoofing strategy in the Gu et al. environment. Byrd (2022) studies spoofing with learning agents.</li>
+</ul>
+
+<h2>3. Model and code changes</h2>
+<h3>3.1 Environment (Gu et al. 2024, Sec. 4)</h3>
+<ul>
+<li><b>Market.</b> T = 10,000 time steps. A mean-reverting fundamental with mean 10<sup>5</sup>, &kappa; = 0.05 and shock
+variance 10<sup>4</sup>.</li>
+<li><b>Background traders.</b> 12 zero-intelligence (ZI) and 12 HBL traders (memory L = 4), arrival rate 0.002, at most
+10 units each, private-value variance 5&times;10<sup>6</sup>, shading in [250, 500].</li>
+<li><b>Market maker.</b> A ladder market maker with K = 8 rungs and arrival rate 0.035. Its rung spacing &xi; and spread
+&omega; follow Gu et al.'s Table 1. We use A1 (&xi; = 10, &omega; = 16, most liquid), B2 (50, 64) and C3 (100, 256,
+least liquid).</li>
+<li><b>Spoofer.</b> From t = 1,000 it arrives at rate 0.02. Each time it withdraws its orders, posts a genuine sell at
+r&#771;<sub>t</sub> + offset, and, if spoofing, posts a 200-unit bid one tick below the best bid of the other traders.
+Here r&#771;<sub>t</sub> = E[r<sub>T</sub> | r<sub>t</sub>] is the estimate of the final fundamental.</li>
+</ul>
+
+<h3>3.2 Arms</h3>
+<p>All arms share every random draw for a given seed: fundamental path, arrivals, private values, trader randomness, and
+the order of actions within a time step.</p>
+<table>
+<tr><th>Arm</th><th>Genuine sell</th><th>Spoof bid</th></tr>
+<tr><td>base</td><td>none (no strategic seller)</td><td>&ndash;</td></tr>
+<tr><td>nsV1 / spV1</td><td>1 unit, visible (Gu et al.'s spoofer)</td><td>no / yes</td></tr>
+<tr><td>nsV / spV</td><td>G = 10 units, fully visible</td><td>no / yes</td></tr>
+<tr><td>nsI / spI</td><td>G = 10 units, iceberg: shows 1, refills at the back of the queue</td><td>no / yes</td></tr>
+</table>
+<p>Interaction: &Gamma; = (spI &minus; nsI) &minus; (spV &minus; nsV), computed seed by seed. Confidence intervals are
+seed-level bootstrap 95% intervals.</p>
+<p>Runs:</p>
+<ul>
+<li><b>Pilot</b> (exploratory): seeds 100000&ndash;100399, all arms, offsets 1 and 50.</li>
+<li><b>Confirmation</b>: fresh seeds 200000&ndash;200399, core arms, offsets 1, 25, 50 and 100. The claims to test were
+written down before this run.</li>
+</ul>
+
+<h3>3.3 Changes relative to upstream PyMarketSim</h3>
+<table>
+<tr><th>Change</th><th>Why it matters for icebergs</th></tr>
+<tr><td>Price&ndash;time priority within a price level</td><td>Upstream breaks ties by order id. Queue position is the main cost of an iceberg refill.</td></tr>
+<tr><td>Each trade executes at the resting order's price, level by level</td><td>Upstream clears all of a step's trades at one price, which hides how an iceberg is consumed level by level.</td></tr>
+<tr><td>Multi-unit partial fills that leave historical records unchanged</td><td>Upstream shrinks the stored order on a partial fill, so learners would see the wrong displayed size.</td></tr>
+<tr><td>Self-trade prevention; matching on arrival</td><td>The spoof bid can never trade against the spoofer's own ask.</td></tr>
+<tr><td>HBL learns only from a public ledger: price, displayed size, time, fills and cancel time</td><td>Hidden size and order ownership are never visible. Withdrawal times come from public cancels.</td></tr>
+<tr><td>For multi-unit orders, the unfilled remainder counts as rejected</td><td>Identical to upstream for unit orders. Upstream's own pricing optimizer is used unchanged.</td></tr>
+<tr><td>Spoofer events always scheduled; ignored when the spoofer is absent</td><td>Fixes a pairing bug: otherwise the spoofer's presence changes the order of actions within a step.</td></tr>
+<tr><td>Fill-time valuation (Section 6)</td><td>A lower-variance surplus measure with the same expectation as the standard one.</td></tr>
+</table>
+<p>Seven tests check the implementation:</p>
+<ul>
+<li>FIFO matching and level-by-level pricing;</li>
+<li>partial fills and self-trade prevention;</li>
+<li>cash and position conservation;</li>
+<li>iceberg invariants: visible size at most 1, and at most G units sold per parent order;</li>
+<li>visible and iceberg arms are identical when no HBL traders are present;</li>
+<li>the ledger belief equals upstream <code>HBLAgent.belief_function</code> on unit-order histories;</li>
+<li>arms are exactly paired, and the fill-time valuation identity holds.</li>
+</ul>
+
+<h2>4. Results with the standard surplus measure</h2>
+<h3>4.1 Replication of Gu et al.</h3>
+<table>
+<tr><th>Effect of spoofing, D<sub>V</sub> = spV &minus; nsV (confirmation)</th><th>A1</th><th>B2</th><th>C3</th></tr>
+<tr><td>Midprice &minus; r&#771;, offset 1 &rarr; 100</td><td class="n">&asymp; 0</td><td class="n">+1.2 &rarr; +5.2*</td><td class="n">+5.9 &rarr; +15.0*</td></tr>
+<tr><td>HBL surplus per agent</td><td class="n">&minus;6 to &minus;12*</td><td class="n">&minus;8 to &minus;13*</td><td class="n">&minus;7 to &minus;10</td></tr>
+<tr><td>Spoof units executed per market</td><td class="n">0.2&ndash;0.3</td><td class="n">0.3&ndash;0.4</td><td class="n">0.3&ndash;0.4</td></tr>
+</table>
+<p class="cap">* CI excludes 0 in every cell of the row (C3 HBL: all cells but offset 50). The price impact grows as
+liquidity falls and as the genuine ask moves away from the estimate, as in Gu et al.</p>
+
+<h3>4.2 The interaction (H1) was not confirmed</h3>
+<p>The pilot showed a negative interaction in C3, &minus;44.5 [&minus;87, &minus;5] at offset 1 and &minus;34.7
+[&minus;67, &minus;3] at offset 50. In the confirmation, no cell excluded 0 (C3: &minus;1.8 at offset 1, +14.5 at offset
+50). Figure 1, left panel, shows all cells.</p>
+
+<h3>4.3 Threshold</h3>
+<p>When the genuine ask lies outside the prices HBL ever considers (A1 at offsets 50 and 100), the visible and iceberg
+arms are identical seed by seed. In those cells, displayed size has no effect at all.</p>
+
+<h3>4.4 Crowding out</h3>
+<p>Hiding the genuine leg makes the strategic seller sell about 0.3 more units per market (Figure 1, right panel). HBL
+sellers sell 0.3&ndash;0.46 fewer units, and total background surplus falls (Figure 1, middle panel). This happens with
+or without spoofing.</p>
+<figure><img src="key_results.png" alt="Forest plots of the interaction, the change in background surplus, and the change in units sold">
+<p class="cap"><b>Figure 1.</b> Seed-paired effects with bootstrap 95% CIs, standard surplus measure. Grey: pilot. Blue:
+confirmation on fresh seeds.</p></figure>
+
+<h2>5. Why there is no interaction</h2>
+<p><b>Implementation.</b> All tests pass, the arms are equal exactly where theory says they must be, and Gu et al.'s
+gradient is reproduced. We found no sign that the null result comes from the code.</p>
+<p><b>Measurement noise.</b> Standard surplus is cash + position &times; r<sub>T</sub>. All arms of a seed share
+r<sub>T</sub>, so the interaction contains a term &Gamma;(position) &times; (r<sub>T</sub> &minus; mean). This term has
+mean about 0, but it explains 90&ndash;99% of the seed-level variance of &Gamma;. The pilot ran 60 interaction tests and
+3 excluded 0, exactly the number expected by chance.</p>
+<p><b>Design.</b> The genuine ask is priced at r&#771;<sub>t</sub> + offset, and r&#771;<sub>t</sub> is the conditional
+expectation of r<sub>T</sub>. Each unit sold therefore earns the offset in expectation, so hiding or spoofing can change
+spoofer profit only through how many units fill. Spoofing adds almost the same number of fills with either display: in
+C3 at offset 1, +0.60 units when visible and +0.58 as an iceberg. &Gamma;(units sold) is within &plusmn;0.1 in every
+cell, so the interaction on profit is bounded by roughly offset &times; 0.1.</p>
+<p><b>Mechanism in HBL beliefs.</b> HBL estimates the probability that a price p trades as accepted evidence divided
+by total evidence.</p>
+<ul>
+<li>A bid at price q is evidence only for prices p &le; q.</li>
+<li>An ask at price a is evidence only for prices p &ge; a.</li>
+</ul>
+<p>The spoof bid always sits below the genuine ask (q &lt; a), so the two never appear in the same belief at the same
+price. They interact only through the agent's choice of price. Hiding the genuine leg mainly changes how HBL
+<i>sellers</i> compete with it: a large unfilled visible ask is rejection evidence for selling at or above a, so they
+undercut it. The spoof acts mainly on HBL <i>buyers</i>, through rejection evidence below the bid.</p>
+
+<h2>6. Rerun with fill-time valuation</h2>
+<p>For each trader we add a surplus measure that values every filled unit at the estimate in force when it trades:
+&Sigma; side &middot; q &middot; (r&#771;<sub>t</sub> &minus; p), plus private value for background traders. A fill at
+time t depends only on information up to t, and E[r<sub>T</sub> | information at t] = r&#771;<sub>t</sub>, so the new
+measure has the same expectation as the standard one without the terminal-value noise. The simulations are unchanged.
+We re-ran both seed sets and checked five claims written down before the rerun.</p>
+<table>
+<tr><th>#</th><th>Pre-specified claim</th><th>Outcome</th></tr>
+<tr><td>1</td><td>Every original output is reproduced</td><td>Met: 34,800 of 34,800 runs identical.</td></tr>
+<tr><td>2</td><td>Same expectation as the standard measure</td><td>Met: the difference excludes 0 in 1 of 15 cells. That cell (pilot C3, offset 1) was the one picked for being significant.</td></tr>
+<tr><td>3</td><td>Per-seed SD of &Gamma; at least 3&times; smaller</td><td>Mostly met: 12 of 15 cells show a 4&ndash;15&times; reduction. The other 3 show 1.9&ndash;2.9&times;; these cells were already low-noise.</td></tr>
+<tr><td>4</td><td>C3 &Gamma; at offsets 1 and 50 includes 0 and lies within &plusmn;15</td><td>Partly met: offset 1 holds on both seed sets; offset 50 is within &plusmn;15 but excludes 0 (see below).</td></tr>
+<tr><td>5</td><td>Hiding without spoofing lowers background surplus; the hider gains about offset &times; extra units</td><td>Met in 11 of 12 B2/C3 cells (&minus;11 to &minus;88). The hider's gain matches offset &times; extra units, e.g. C3 offset 50: +16.0 vs +13.4; offset 100: +17.2 vs +18.5.</td></tr>
+</table>
+
+<table>
+<tr><th>&Gamma; on spoofer surplus, C3</th><th>Pilot</th><th>Confirmation</th><th>Pooled (800 seeds)</th></tr>
+<tr><td>Offset 1, standard measure</td><td class="n">&minus;44.5 [&minus;87, &minus;6]*</td><td class="n">&minus;1.8 [&minus;32, +30]</td><td class="n">&minus;23.2 [&minus;50, +2]</td></tr>
+<tr><td>Offset 1, fill-time measure</td><td class="n">&minus;1.6 [&minus;6.1, +2.8]</td><td class="n">&minus;2.3 [&minus;8.1, +2.9]</td><td class="n">&minus;2.0 [&minus;5.7, +1.5]</td></tr>
+<tr><td>Offset 50, standard measure</td><td class="n">&minus;34.7 [&minus;65, &minus;5]*</td><td class="n">+14.5 [&minus;19, +58]</td><td class="n">&minus;10.1 [&minus;32, +17]</td></tr>
+<tr><td>Offset 50, fill-time measure</td><td class="n">&minus;8.3 [&minus;13.7, &minus;2.8]*</td><td class="n">&minus;4.2 [&minus;12.3, +3.4]</td><td class="n">&minus;6.2 [&minus;11.4, &minus;1.6]*</td></tr>
+</table>
+<figure class="narrow"><img src="rerun_nr_gamma.png" alt="Interaction on spoofer surplus, standard versus fill-time measure, all cells">
+<p class="cap"><b>Figure 2.</b> &Gamma; on spoofer surplus in every non-degenerate cell. Grey: standard measure. Blue:
+fill-time measure. Intervals shrink 4&ndash;15&times; in most cells.</p></figure>
+
+<p><b>Where the &minus;6 comes from</b> (C3, offset 50, 800 seeds; spoofer surplus split by leg):</p>
+<ul>
+<li>Genuine sells: &minus;3.6 [&minus;8.2, +0.7].</li>
+<li>Accidental fills of the spoof bid: &minus;2.6 [&minus;4.3, &minus;1.1]. With an iceberg, the spoof bid is hit 0.04
+fewer units, and each unit bought earns about +52.</li>
+</ul>
+<p>This is consistent with the crowding-out channel: when the sell wall is hidden, HBL sellers are less aggressive, so
+they undercut less and also hit the spoof bid less often. That step is not measured directly.</p>
+<p><b>Exploratory findings (not pre-specified).</b></p>
+<ul>
+<li><b>Profit from spoofing.</b> With the fill-time measure, it is significantly positive in every B2 and C3 cell:
++17 to +37 for the one-unit spoofer and +9 to +55 with G = 10. With the standard measure it was significant only in C3 at
+offset 100. This makes Gu et al.'s liquidity result sharper.</li>
+<li><b>HBL in B2 at offset 1.</b> Hiding reduces the harm spoofing does to HBL traders by about 3.3 per agent, on both
+seed sets (+3.2* and +3.3*).</li>
+</ul>
+
+<h2>7. Limitations and next steps</h2>
+<p><b>Limitations.</b></p>
+<ul>
+<li>The spoofer's strategy is fixed, and the background mix of HBL and ZI traders is fixed.</li>
+<li>The market is thin: 16&ndash;27 units trade per run.</li>
+<li>There is one iceberg design (peak 1, synthetic) and one parent size (G = 10), re-posted at every arrival.</li>
+<li>All learning is HBL, and the counting rule for multi-unit remainders departs from upstream.</li>
+</ul>
+<p><b>Next steps.</b></p>
+<ol>
+<li><b>Displayed versus actual liquidity.</b> Hide <i>bid-side</i> depth of the market maker or an independent
+provider, i.e. the side the spoof acts on. Spoof and hidden depth then enter the same belief ratio, and hiding changes
+the spoof's share of visible bid depth. Gu et al.'s liquidity grid changes displayed and actual depth together; icebergs
+separate them. Outcomes would be HBL loss and price distortion, which the fixed genuine price does not constrain. An
+ask-side version serves as a placebo.</li>
+<li><b>EGTA.</b> Let the spoofer choose offset, parent size, peak and spoof size, and let background traders choose HBL
+or ZI. The question becomes whether access to icebergs changes equilibrium behaviour and welfare. The fill-time measure
+cuts the number of samples needed per profile by roughly 25&ndash;100&times;.</li>
+<li><b>Execution framing.</b> Give the spoofer a large order that must be filled. In the enforcement cases icebergs
+are used this way, and the natural outcomes are time to complete and average price.</li>
+</ol>
+
+<h2>8. Reproducibility</h2>
+<p>All code, tests, summaries and figures are at <b>github.com/Amtyro/quant-agent</b>, folder
+<code>a1_iceberg_spoofing</code>. The design notes and pre-specified claims are in <code>experiments/A1_DESIGN.md</code>;
+a fuller diagnosis is in <code>experiments/A1_DIAGNOSIS.md</code>. Runs are deterministic given the seed. The
+confirmation design takes about one hour on 15 worker processes. The code uses PyMarketSim's <code>HBLAgent</code>
+unmodified.</p>
+
+<h2>References</h2>
+<div class="refs">
+<p>Bessembinder, H., Panayides, M., &amp; Venkataraman, K. (2009). Hidden liquidity: An analysis of order exposure strategies in electronic stock markets. <i>Journal of Financial Economics</i>.</p>
+<p>Boulatov, A., &amp; George, T. J. (2013). Hidden and displayed liquidity in securities markets with informed liquidity providers. <i>Review of Financial Studies</i>.</p>
+<p>Buti, S., &amp; Rindi, B. (2013). Undisclosed orders and optimal submission strategies in a limit order market. <i>Journal of Financial Economics</i>.</p>
+<p>Byrd, D. (2022). Learning not to spoof. <i>3rd ACM International Conference on AI in Finance (ICAIF)</i>.</p>
+<p>Cebiroglu, G., &amp; Horst, U. (2015). Optimal order display in limit order markets with liquidity competition. <i>Journal of Economic Dynamics and Control</i>.</p>
+<p>Debie, P., et al. (2023). <i>European Financial Management</i> (spoofing cases and order types).</p>
+<p>Esser, A., &amp; M&ouml;nch, B. (2007). The navigation of an iceberg: The optimal use of hidden orders. <i>Finance Research Letters</i>.</p>
+<p>Frey, S., &amp; Sand&aring;s, P. (2017). The impact of iceberg orders in limit order books. <i>Quarterly Journal of Finance</i>.</p>
+<p>Gjerstad, S., &amp; Dickhaut, J. (1998). Price formation in double auctions. <i>Games and Economic Behavior</i>.</p>
+<p>Gu, A., Wang, Y., Mascioli, C., Chakraborty, M., Savani, R., Turocy, T. L., &amp; Wellman, M. P. (2024). The effect of liquidity on the spoofability of financial markets. <i>5th ACM International Conference on AI in Finance (ICAIF)</i>.</p>
+<p>Liu, B. (2024). <i>Agent-based Modeling and Market Microstructure</i>. PhD thesis, King's College London.</p>
+<p>Liu, B., Polukarov, M., Ventre, C., Li, L., Kanthan, L., Wu, F., &amp; Basios, M. (2022). Analysis on the impact of iceberg orders in financial markets. <i>4th Games, Agents, and Incentives Workshop (GAIW-22)</i>.</p>
+<p>Verhulst, &amp; Pennings (2025). <i>Capital Markets Law Journal</i> (spoofing enforcement cases).</p>
+<p>Wang, X., Hoang, C., Vorobeychik, Y., &amp; Wellman, M. P. (2021). Spoofing the limit order book: A strategic agent-based analysis. <i>Games</i>, 12(2), 46.</p>
+<p>Wang, X., &amp; Wellman, M. P. (2017). Spoofing the limit order book: An agent-based model. <i>Proceedings of the 16th International Conference on Autonomous Agents and Multiagent Systems (AAMAS)</i>.</p>
+<p>Wellman, M. P. (2006). Methods for empirical game-theoretic analysis. <i>Proceedings of the 21st National Conference on Artificial Intelligence (AAAI)</i>.</p>
+<p>Zotikov, D., &amp; Antonov, A. (2021). <i>Quantitative Finance</i> (native and synthetic iceberg orders).</p>
+</div>
+</body>
+</html>
