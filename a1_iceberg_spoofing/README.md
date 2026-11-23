@@ -11,6 +11,9 @@ against heuristic belief learning (HBL) traders. It builds on Gu et al. (ICAIF 2
 | `experiments/a1_pilot.py` | Runs the paired arms x liquidity environments x seeds |
 | `experiments/a1_analysis.py` | Seed-paired effects with bootstrap CIs; writes `*_summary.md/.json` and figures |
 | `experiments/a1_diagnose.py` | Breaks down the noise and channels behind the null interaction; writes `results_a1/diagnosis.md` |
+| `experiments/a1_rerun_check.py` | Checks the pre-specified claims of the fill-time-valuation rerun; writes `results_a1/rerun_nr.md` and `rerun_nr_gamma.png` |
+| `experiments/a1_decompose.py` | Splits the spoofer's fill-time surplus into genuine sells and spoof-bid purchases |
+| `experiments/A1_EXPLAINER_zh.md` | Plain-language walkthrough in Chinese: idea, theory, code changes, results, why H1 failed, next designs |
 | `experiments/A1_DESIGN.md` | Design, departures from upstream, and the claims fixed before the confirmation run |
 | `experiments/A1_DIAGNOSIS.md` | Why H1 was not supported, and the rerun vs EGTA comparison |
 | `experiments/results_a1/` | Summaries, logs and figures for the pilot (seeds 100000-100399) and confirmation (seeds 200000-200399) runs |

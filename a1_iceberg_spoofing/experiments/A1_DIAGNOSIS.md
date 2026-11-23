@@ -71,3 +71,39 @@ look significant. The HBL model itself also predicts that the two levers act alm
 
 Recommended order: first the lower-variance rerun (cheap, and it makes the null informative), then EGTA using the
 same measure.
+
+## Rerun with fill-time valuation (results; claims in `A1_DESIGN.md`, tables in `results_a1/rerun_nr.md`)
+
+| # | Pre-specified claim | Outcome |
+|---|---|---|
+| 1 | Determinism | Met: 34,800 of 34,800 runs reproduce every original output exactly. |
+| 2 | Same expectation | Met: raw minus fill-time Gamma excludes 0 in 1 of 15 cells. That cell is pilot C3 offset 1, the one selected because it was significant (winner's curse). |
+| 3 | SD reduced >= 3x | Mostly met: 12 of 15 cells show a 4-15x reduction. The exceptions are A1 o25 (1.9x), B2 o25 (2.9x) and B2 o100 (2.8x); these cells had low raw noise. |
+| 4 | C3 Gamma CI includes 0 and lies within +/-15 | Partly met. See the table below. |
+| 5 | Crowding out | Met in 11 of 12 cells: nsI - nsV total background surplus is significantly negative. The exception is confirm C3 o1, -23 [-59, +12]. The hidden seller's gain equals offset x extra units sold, e.g. C3 o50 +16.0 vs +13.4 and C3 o100 +17.2 vs +18.5. |
+
+Claim 4 in detail (C3, Gamma on spoofer fill-time surplus):
+
+| Offset | Pilot | Confirmation | Pooled, 800 seeds |
+|---|---|---|---|
+| 1 | -1.6 [-6.1, +2.8] | -2.3 [-8.1, +2.9] | not computed |
+| 50 | -8.3 [-13.7, -2.8]* | -4.2 [-12.3, +3.4] | -6.2 [-11.4, -1.6]* |
+
+Reading:
+* **H1 (amplification) is rejected.** No cell has a positive interaction.
+* **The pilot's substitution was real in sign but inflated about 6x in size.** In C3 o50 the true value is about -6, against a spoofing effect of about +45 in that cell. Across the 15 cells, 3 are significantly negative (4-8 in size); the rest go both ways.
+
+Where the -6 comes from (`a1_decompose.py`, C3 o50, 800 seeds; table in `results_a1/decompose_C3_o50.md`):
+
+| Part of spoofer surplus | Gamma | Note |
+|---|---|---|
+| Genuine sells | -3.6 [-8.2, +0.7] | about offset x -0.05 units |
+| Accidental spoof-bid purchases | -2.6 [-4.3, -1.1]* | the spoof bid is hit 0.04 fewer units with an iceberg, at about +52 per unit |
+| Total | -6.2 [-11.3, -1.7]* | |
+
+This is consistent with the crowding-out channel: with the genuine ask hidden, HBL sellers are less aggressive, so they undercut less and also hit the spoof bid less often. That last step is not measured directly. With the genuine leg's price fixed, the interaction can only work through quantities, which keeps it to a few units.
+
+Exploratory findings (not pre-specified):
+* **Spoofing is profitable once measured precisely.** The value of spoofing is significantly positive in every B2 and C3 cell: +17 to +37 for Gu's G=1 spoofer, and +9 to +55 for G=10. With the raw measure it was significant only in C3 o100.
+* **Hiding slightly reduces HBL harm from spoofing in B2 o1.** Gamma on HBL surplus is +3.2 on pilot seeds and +3.3 on confirmation seeds; both CIs exclude 0.
+* **Hiding has a social cost.** Without spoofing, the background loss from hiding (about 60-80) is 4-5x the hidden seller's gain (about 15).
