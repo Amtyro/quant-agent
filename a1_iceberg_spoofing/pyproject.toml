@@ -1,0 +1,25 @@
+# Tooling configuration for the A1 experiment. The code is run from this folder as the `experiments`
+# package (python -m experiments.<module>) with PyMarketSim on PYTHONPATH; it is not pip-installed.
+
+[tool.pytest.ini_options]
+testpaths = ["experiments"]
+python_files = ["test_*.py"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["experiments/results_a1"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade-lite
+select = ["E", "W", "F", "I", "B"]
+ignore = [
+    "E741",  # single-letter names such as I (iceberg arm) follow the paper's notation
+    "B023",  # closures over loop variables are evaluated immediately in this code
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["experiments"]
+known-third-party = ["marketsim"]

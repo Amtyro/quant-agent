@@ -1,0 +1,9 @@
+# Normalise line endings: LF in the repository and on checkout, except Windows scripts.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary artefacts
+*.png binary
+*.pdf binary
+*.pkl binary

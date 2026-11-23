@@ -1,12 +1,20 @@
-# Commits any changes in this folder and pushes them to GitHub (Amtyro/quant-agent).
-# Run by the Windows scheduled task "quant-agent GitHub sync" every day at 23:00.
-# You can also run it by hand at any time.
+<#
+.SYNOPSIS
+    Commit any changes in this repository and push them to GitHub (Amtyro/quant-agent).
+
+.DESCRIPTION
+    Run daily at 23:00 by the Windows scheduled task "quant-agent GitHub sync"; can also be run by hand.
+    Files matched by .gitignore are never committed. Results are appended to sync.log at the repository root.
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File tools\auto-sync.ps1
+#>
 
 $ErrorActionPreference = 'Continue'
-$repo = $PSScriptRoot
+$repo = Split-Path -Parent $PSScriptRoot
 $log  = Join-Path $repo 'sync.log'
 
-function Write-Log($msg) {
+function Write-Log([string]$msg) {
     "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $msg" | Out-File -FilePath $log -Append -Encoding utf8
 }
 
@@ -35,7 +43,12 @@ for ($i = 1; $i -le 3 -and -not $ok; $i++) {
         git @net pull --rebase origin main 2>&1 | Out-Null
         git @net push origin main 2>&1 | Out-Null
     }
-    if ($LASTEXITCODE -eq 0) { $ok = $true } else { Write-Log "Push attempt $i failed (exit $LASTEXITCODE)."; Start-Sleep -Seconds 30 }
+    if ($LASTEXITCODE -eq 0) {
+        $ok = $true
+    } else {
+        Write-Log "Push attempt $i failed (exit $LASTEXITCODE)."
+        Start-Sleep -Seconds 30
+    }
 }
 
 if ($ok) { Write-Log 'Push OK.' } else { Write-Log 'Push FAILED after 3 attempts; will retry at next run.' }

@@ -1,13 +1,15 @@
-"""Correctness checks for the A1 pilot simulator (run: python -m pytest -q experiments/test_a1sim.py)."""
+"""Correctness checks for the A1 simulator.
+
+Run from a1_iceberg_spoofing with PyMarketSim on PYTHONPATH: ``python -m pytest``.
+"""
 import math
 from dataclasses import replace
 
-import numpy as np
-
-from experiments.a1sim import Book, Config, LedgerHBL, Rec, Sim, SPOOFER, ENVS
 from marketsim.agent.hbl_agent import HBLAgent
 from marketsim.fourheap.constants import BUY, SELL
 from marketsim.fourheap.order import MatchedOrder, Order
+
+from experiments.a1sim import ENVS, SPOOFER, Book, Config, LedgerHBL, Rec, Sim
 
 
 def _rec(oid, owner, side, price, qty, t=0):

@@ -1,0 +1,12 @@
+# Environment that produced the committed results (Python 3.10).
+# PyMarketSim itself is not on PyPI: clone https://github.com/dipplestix/pymarketsim at commit c300eec and put it on
+# PYTHONPATH (see README). torch and fastcubicspline are imported by PyMarketSim, not by this code.
+numpy==1.26.4
+scipy==1.13.0
+matplotlib==3.8.4
+torch==2.2.2
+fastcubicspline==1.1.5
+
+# development
+pytest>=8
+ruff>=0.6

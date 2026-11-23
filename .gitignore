@@ -14,6 +14,7 @@ venv/
 .ipynb_checkpoints/
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
 
 # Data files (often large; GitHub rejects files over 100 MB)
 data/
