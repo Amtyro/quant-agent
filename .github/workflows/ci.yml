@@ -17,8 +17,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
       - run: pip install ruff==0.17.6
@@ -30,9 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYMARKETSIM_COMMIT: c300eec
+    defaults:
+      run:
+        working-directory: a1_iceberg_spoofing
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
@@ -41,10 +44,22 @@ jobs:
         run: |
           git clone --quiet https://github.com/dipplestix/pymarketsim.git "$RUNNER_TEMP/pymarketsim"
           git -C "$RUNNER_TEMP/pymarketsim" checkout --quiet "$PYMARKETSIM_COMMIT"
+          echo "PYTHONPATH=$RUNNER_TEMP/pymarketsim" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: |
           pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
-          pip install -r a1_iceberg_spoofing/requirements.txt
+          pip install -r requirements.txt
       - name: pytest
-        working-directory: a1_iceberg_spoofing
-        run: PYTHONPATH="$RUNNER_TEMP/pymarketsim" python -m pytest
+        run: python -m pytest
+      # Simulator outputs are platform-specific (see experiments/test_regression.py). Regenerate this runner's
+      # golden values into a copy, so a Linux entry can be added to or refreshed in the fixture from the artifact.
+      - name: Regenerate golden outputs for this platform
+        if: always()
+        run: |
+          cp experiments/golden_a1sim.json "$RUNNER_TEMP/golden_a1sim.json"
+          A1_UPDATE_GOLDEN=1 A1_GOLDEN="$RUNNER_TEMP/golden_a1sim.json" python -m pytest experiments/test_regression.py -q
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: golden-${{ runner.os }}
+          path: ${{ runner.temp }}/golden_a1sim.json

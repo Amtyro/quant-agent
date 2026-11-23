@@ -90,3 +90,9 @@ A1_UPDATE_GOLDEN=1 python -m pytest experiments/test_regression.py   # only when
 
 Refactors must leave `test_regression.py` passing: the committed results depend on the simulator being bit-for-bit
 deterministic.
+
+**Platform note.** Runs are exactly reproducible on the same platform, but not bit-for-bit across operating systems:
+PyMarketSim's HBL price optimiser uses compiled numerical code whose floating-point results differ slightly between
+Windows and Linux, and the differences compound over a market. The committed results were produced on Windows with
+the pinned environment above. The golden fixture therefore holds one set of values per platform; CI checks the Linux
+set.

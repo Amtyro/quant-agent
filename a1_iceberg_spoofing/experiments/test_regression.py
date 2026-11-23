@@ -1,8 +1,14 @@
 """Golden-output regression test for the A1 simulator.
 
 The simulator is deterministic given (config, seed), and the committed results depend on that. This test pins the
-summary of a few short runs, so any change that alters simulated markets fails loudly. If a change is meant to
-alter them, regenerate the fixture and commit it with the change:
+summary of a few short runs, so any change that alters simulated markets fails loudly.
+
+Exact values are platform-specific: PyMarketSim's HBL price optimiser relies on compiled numerical code whose
+floating-point results differ slightly between operating systems, and the differences compound over a run. The
+fixture therefore holds one set of values per ``sys.platform``; a platform without an entry is skipped. The committed
+results in ``results_a1/`` were produced on Windows (``win32``).
+
+To (re)generate the entry for the current platform, e.g. when a change is meant to alter outputs:
 
     A1_UPDATE_GOLDEN=1 python -m pytest experiments/test_regression.py
 """
@@ -11,6 +17,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -19,7 +26,8 @@ import pytest
 
 from experiments.a1sim import ENVS, Config, Sim
 
-GOLDEN = Path(__file__).with_name("golden_a1sim.json")
+GOLDEN = Path(os.environ.get("A1_GOLDEN", Path(__file__).with_name("golden_a1sim.json")))
+PLATFORM = sys.platform
 
 CASES = {
     "B2_base": ("B2", dict(spoofer=False), 7),
@@ -46,15 +54,22 @@ def _close(a, b) -> bool:
     return a == b
 
 
+def _load() -> dict:
+    return json.loads(GOLDEN.read_text()) if GOLDEN.exists() else {}
+
+
 @pytest.mark.parametrize("name", sorted(CASES))
 def test_matches_golden(name):
     got = _summarise(*CASES[name])
     if os.environ.get("A1_UPDATE_GOLDEN"):
-        data = json.loads(GOLDEN.read_text()) if GOLDEN.exists() else {}
-        data[name] = got
+        data = _load()
+        data.setdefault(PLATFORM, {})[name] = got
         GOLDEN.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
-        pytest.skip("golden output updated")
-    want = json.loads(GOLDEN.read_text())[name]
+        pytest.skip(f"golden output for {PLATFORM} updated")
+    golden = _load().get(PLATFORM)
+    if golden is None:
+        pytest.skip(f"no golden outputs for platform {PLATFORM!r}; generate them with A1_UPDATE_GOLDEN=1")
+    want = golden[name]
     assert got.keys() == want.keys()
     diffs = {k: (want[k], got[k]) for k in want if not _close(want[k], got[k])}
     assert not diffs, f"outputs changed (expected, got): {diffs}"
