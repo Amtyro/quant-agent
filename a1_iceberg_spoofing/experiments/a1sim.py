@@ -23,6 +23,7 @@ the spoofer's behaviour.
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 import random
 from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Optional, Tuple
@@ -352,6 +353,9 @@ class Sim:
         self._oid = 0
         self.pos: Dict = {}
         self.cash: Dict = {}
+        # fill-time valuation: sum of side * q * (r~_t - p) over fills, i.e. each unit valued at the estimate of
+        # the terminal fundamental when it trades. Unbiased for pos * r_T + cash, without the terminal noise.
+        self.mark: Dict = defaultdict(float)
 
         roles = np.random.default_rng(s_roles)
         hbl_ids = set(roles.choice(cfg.n_bg, size=cfg.n_hbl, replace=False).tolist())
@@ -412,6 +416,7 @@ class Sim:
             for r in (buy, sell):
                 self.pos[r.owner] += r.side * q
                 self.cash[r.owner] -= r.side * q * p
+                self.mark[r.owner] += r.side * q * (float(self.est[self.t]) - p)
                 if r.owner == SPOOFER:
                     if r.side == SELL:
                         self.sp_stats["sold"] += q
@@ -540,10 +545,12 @@ class Sim:
         cfg = self.cfg
         final = float(self.fund[cfg.T])
         surplus = {"ZI": [], "HBL": []}
+        surplus_nr = {"ZI": [], "HBL": []}
         hbl_used = hbl_tot = fails = 0
         for aid, ag in self.agents.items():
             pos = self.pos[aid]
             surplus[ag.kind].append(ag.pv.value_at_position(pos) + self.cash[aid] + pos * final)
+            surplus_nr[ag.kind].append(ag.pv.value_at_position(pos) + self.mark[aid])
             if ag.kind == "HBL":
                 hbl_used += ag.n_hbl
                 hbl_tot += ag.n_hbl + ag.n_zi
@@ -571,6 +578,10 @@ class Sim:
             if len(post) else math.nan,
             mid_dev=float(np.nanmean(mids - est_grid)) if np.isfinite(mids).any() else math.nan,
             mids=mids, final_fund=final,
+            sp_surplus_nr=self.mark[SPOOFER], mm_surplus_nr=self.mark[MM] if cfg.mm else 0.0,
+            hbl_mean_nr=float(np.mean(surplus_nr["HBL"])) if surplus_nr["HBL"] else math.nan,
+            zi_mean_nr=float(np.mean(surplus_nr["ZI"])) if surplus_nr["ZI"] else math.nan,
+            total_bg_nr=float(sum(sum(v) for v in surplus_nr.values())),
             hbl_share=hbl_used / hbl_tot if hbl_tot else math.nan, hbl_fail=fails,
             imbalance_pos=sum(self.pos.values()), imbalance_cash=sum(self.cash.values()),
             diag_n=len(diag),

@@ -121,3 +121,22 @@ def test_arms_are_paired():
     ghost = Sim(_cfg(n_zi=24, n_hbl=0, spoofer=True, spoof=False, sell_offset=1e7), seed=7).run()
     for k in ("zi_mean", "mm_surplus", "n_trades", "mid_dev"):
         assert base[k] == ghost[k], k
+
+
+def test_fill_time_valuation_identity():
+    """Fill-time surplus = sum of side*q*(r~_t - p) over the ledger's fills; differs from the terminal-value surplus
+    only by sum side*q*(r_T - r~_t); and the valuations net to zero across all traders."""
+    sim = Sim(_cfg(), seed=5)
+    out = sim.run()
+    final = out["final_fund"]
+    nr = noise = 0.0
+    for r in sim.ledger:
+        if r.owner != SPOOFER:
+            continue
+        for (t, q, p) in r.fills:
+            nr += r.side * q * (sim.est[t] - p)
+            noise += r.side * q * (final - sim.est[t])
+    assert out["sp_bought"] + out["sp_sold"] > 0
+    assert abs(out["sp_surplus_nr"] - nr) < 1e-6
+    assert abs(out["sp_surplus"] - out["sp_surplus_nr"] - noise) < 1e-6
+    assert abs(sum(sim.mark.values())) < 1e-6

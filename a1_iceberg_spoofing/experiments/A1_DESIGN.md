@@ -51,3 +51,23 @@ confirmation run, using fresh seeds, the three claims to confirm are:
 3. Hiding hurts background traders: spI - spV total background surplus < 0 (pilot: CI < 0 in 5 of 6 cells).
 Offsets 25 and 100 are added to check that the pattern is not tied to the two pilot offsets;
 counterparty composition is recorded to test the channel (iceberg -> more of the seller's units bought).
+
+## Rerun with fill-time valuation (written 2026-11-22, before the rerun)
+Diagnosis (`A1_DIAGNOSIS.md`) showed that 90-99% of the seed-level variance of Gamma(spoofer surplus) comes from
+position differences times the terminal fundamental r_T. The rerun adds, for every trader, a surplus that values each
+filled unit at r~_t (the estimate of r_T when it trades): sum of side * q * (r~_t - p), plus private value for background
+traders. Because fills at t depend only on information up to t, and r~_t = E[r_T | info at t], this measure has the
+same expectation as the original. The original fields are kept unchanged.
+
+Runs: the pilot design on seeds 100000-100399 (all 13 arms) and the confirmation design on seeds 200000-200399
+(core arms, offsets 1/25/50/100). The simulations are the same as before; only the outputs are added.
+
+Claims, fixed before the rerun:
+1. Determinism: every original output equals the earlier run seed by seed.
+2. Same expectation: the fill-time and original surplus contrasts have the same mean (paired difference CI includes 0).
+3. Precision: in every non-degenerate cell, the per-seed SD of Gamma(spoofer surplus) is at least 3x smaller with the
+   fill-time measure.
+4. H1 re-test (primary): in C3 at offsets 1 and 50, Gamma(spoofer surplus, fill-time) has a CI that includes 0 and
+   lies inside +/-15, on both seed sets; no cell shows the pilot's negative interaction.
+5. Crowding out: hiding without spoofing (nsI - nsV) lowers fill-time total background surplus in B2 and C3 (CI < 0),
+   and raises the hidden seller's fill-time surplus by about offset x (extra units sold).

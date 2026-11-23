@@ -12,8 +12,12 @@ from collections import defaultdict
 import numpy as np
 
 OUTCOMES = ["sp_surplus", "hbl_mean", "zi_mean", "mm_surplus", "total_bg", "mid_dev", "vwap_dev_post",
-            "sp_sold", "sp_bought", "n_trades"]
-LABELS = {"sp_surplus": "spoofer surplus", "hbl_mean": "HBL surplus (per agent)",
+            "sp_sold", "sp_bought", "n_trades",
+            # fill-time valuation (each unit valued at r~ when it trades); present in reruns only
+            "sp_surplus_nr", "hbl_mean_nr", "zi_mean_nr", "mm_surplus_nr", "total_bg_nr"]
+LABELS = {"sp_surplus_nr": "spoofer surplus (fill-time)", "hbl_mean_nr": "HBL surplus (fill-time)",
+          "zi_mean_nr": "ZI surplus (fill-time)", "mm_surplus_nr": "MM surplus (fill-time)",
+          "total_bg_nr": "total background surplus (fill-time)","sp_surplus": "spoofer surplus", "hbl_mean": "HBL surplus (per agent)",
           "zi_mean": "ZI surplus (per agent)", "mm_surplus": "MM surplus", "total_bg": "total background surplus",
           "mid_dev": "midprice - r~ (post t0)", "vwap_dev_post": "VWAP - r~ (post t0)",
           "sp_sold": "units sold by spoofer", "sp_bought": "spoof units executed", "n_trades": "units traded"}
@@ -70,6 +74,8 @@ def main(path):
     envs = list(dict.fromkeys(k[0] for k in d["keys"]))
     G = d["args"]["G"]
     offsets = [int(x) for x in d["args"]["offsets"].split(",")]
+    sample = d["results"][0]
+    outcomes = [k for k in OUTCOMES if k in sample]
     stem = os.path.splitext(path)[0]
     lines = [f"# A1 pilot summary ({os.path.basename(path)})", "",
              f"Seeds per arm: {d['args']['seeds']}; genuine-leg size G={G}; offsets {offsets}. "
@@ -107,7 +113,7 @@ def main(path):
                   "and the interaction Gamma = D_I - D_V. Display effects: spI - spV (with spoofing), nsI - nsV (without).", "",
                   "| env | outcome | D_V | D_I | Gamma | spI - spV | nsI - nsV |", "|---|---|---|---|---|---|---|"]
         for env in envs:
-            for k in OUTCOMES:
+            for k in outcomes:
                 s = {
                     "D_V": stat(paired(table, env, V, nV, k)),
                     "D_I": stat(paired(table, env, I, nI, k)),
